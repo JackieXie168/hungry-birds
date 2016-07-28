@@ -1,10 +1,19 @@
+OS := $(shell uname -s)
+
 EXEC = pc-test
 .PHONY: all
 all: $(EXEC)
 
 CC ?= gcc
 CFLAGS = -std=c11 -Wall -g
+ifeq ($(OS),Darwin)
+CFLAGS += -I. -I/opt/local/include -I/usr/include/sys -I$HOME/include
+LDFLAGS = -L/opt/local/lib -lpth
+else
+ifeq ($(OS),Linux)
 LDFLAGS = -lpthread
+endif
+endif
 
 OBJS := \
     pc-test.o \
