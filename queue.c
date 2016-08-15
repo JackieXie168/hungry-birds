@@ -16,6 +16,8 @@ struct __QueueInternal {
 
 queue_p queue_create(size_t item_size)
 {
+    /* FIXME: specify a proper magic number for in-memory representation.
+     */
     queue_p q = calloc(sizeof(Queue), 1);
     atomic_init(&q->head, 0);
     atomic_init(&q->tail, 0);
@@ -47,7 +49,7 @@ QueueResult queue_pop(queue_p q)
     assert(queue_has_front(q) == QUEUE_TRUE);
 
     /* get the head */
-    node *popped = atomic_load(&q->head);
+    node *popped = (node *) atomic_load(&q->head);
     node *compare = popped;
 
     /* set the tail and head to nothing if they are the same */
@@ -68,7 +70,7 @@ QueueResult queue_pop(queue_p q)
 	     */
             new_head = (node *) atomic_load(&popped->next);
         }
-        atomic_store(&q->head, new_head);
+        atomic_store(&q->head, (atomic_uintptr_t*) new_head);
     }
 
     free(popped);
@@ -88,13 +90,14 @@ QueueResult queue_push(queue_p q, void *data)
     memcpy(new_tail + 1, data, q->item_size);
 
     /* swap the new tail with the old */
-    node *old_tail = (node *) atomic_exchange(&q->tail, new_tail);
+    node *old_tail = (node *) atomic_exchange(&q->tail,
+                                              (atomic_uintptr_t*) new_tail);
 
     /* link the old tail to the new */
     if (old_tail) {
-        atomic_store(&old_tail->next, new_tail);
+        atomic_store(&old_tail->next, (atomic_uintptr_t*) new_tail);
     } else {
-        atomic_store(&q->head, new_tail);
+        atomic_store(&q->head, (atomic_uintptr_t*) new_tail);
     }
     return QUEUE_SUCCESS;
 }
@@ -111,8 +114,9 @@ QueueResult queue_clear(queue_p q)
 
 QueueResult queue_destroy(queue_p q)
 {
+    /* FIXME: destroy before validating the magic number pointered by q.
+     */
     free(q);
-    q = NULL;
     return QUEUE_SUCCESS;
 }
 
